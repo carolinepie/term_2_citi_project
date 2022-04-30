@@ -1,3 +1,5 @@
+# install with pip3
+
 numpy
 tensorly
 scipy
