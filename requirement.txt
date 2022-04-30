@@ -1,0 +1,4 @@
+numpy
+tensorly
+scipy
+matplotlib
