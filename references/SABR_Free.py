@@ -268,6 +268,7 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
 if __name__ == '__main__':
     Ft = sabrMC(N=1000, F0=0.02, sigma0=0.07, beta=0.3, T=25, n_years=1)
     data = Ft[-1, :]
+    np.savetxt("sample.csv", Ft, delimiter=",")
     density = gaussian_kde(data)
     xs = np.linspace(-0.1, 0.2, 500)
     density.covariance_factor = lambda: .25
