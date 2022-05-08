@@ -22,7 +22,7 @@ scheme to simulate and discretize the SABR process. This method is a mix of  mul
  chi-squared distribution, the QE method of andersen and small disturbance expansion.   
 The implementation I have provided, tries to vectorize the problem as much as possible, but some amount of iteration is required when dealing
 with the conditional application of the QE scheme or direct inversion. It also does not implement the so-called "Enhanced direct inversion procedure"
-of formula (3.12). I leave this for a later time.        
+of formula (3.12). I leave this for a later time.
 References
 ----------
  * "Efficient Techniques for Simulation of Interest Rate Models Involving Non-Linear Stochastic Differential Equations"
@@ -136,8 +136,8 @@ def andersen_QE(ai, b):
     psi = s2 / m ** 2
     return m, psi
 
-
-def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2., n_years=1.0, T=252, N=1000,
+r = 0.05
+def sabrMC(F0=1+r, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=100000, T=100, N=100000,
            trapezoidal_integrated_variance=False):
     """Simulates a SABR process with absoption at 0 with the given parameters.
        The Sigma, Alpha, Beta, Rho (SABR) model originates from Hagan S. et al. (2002).
@@ -266,8 +266,10 @@ def sabrMC(F0=0.04, sigma0=0.07, alpha=0.5, beta=0.25, rho=0.4, psi_threshold=2.
 
 
 if __name__ == '__main__':
-    Ft = sabrMC(N=1000, F0=0.02, sigma0=0.07, beta=0.3, T=25, n_years=1)
+    # (F0=1+r, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=100000, T=100, N=100000, trapezoidal_integrated_variance=False)
+    Ft = sabrMC(N=10000, F0=1.05, sigma0=0.25, beta=0.999, T=100, n_years=1)
     data = Ft[-1, :]
+    print(np.mean(data))
     np.savetxt("sample.csv", Ft, delimiter=",")
     density = gaussian_kde(data)
     xs = np.linspace(-0.1, 0.2, 500)
