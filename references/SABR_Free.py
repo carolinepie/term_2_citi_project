@@ -137,7 +137,7 @@ def andersen_QE(ai, b):
     return m, psi
 
 r = 0.05
-def sabrMC(F0=1+r, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=100000, T=100, N=100000,
+def sabrMC(F0=1+r, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=1, T=100000, N=100000,
            trapezoidal_integrated_variance=False):
     """Simulates a SABR process with absoption at 0 with the given parameters.
        The Sigma, Alpha, Beta, Rho (SABR) model originates from Hagan S. et al. (2002).
@@ -267,15 +267,19 @@ def sabrMC(F0=1+r, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshol
 
 if __name__ == '__main__':
     # (F0=1+r, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=100000, T=100, N=100000, trapezoidal_integrated_variance=False)
-    Ft = sabrMC(N=10000, F0=1.05, sigma0=0.25, beta=0.999, T=100, n_years=1)
+    np.random.seed(1)
+    Ft = sabrMC(N=10000, T=100, n_years=1)
     data = Ft[-1, :]
-    print(np.mean(data))
+    print(np.mean(Ft[-1, :]))
+    print(Ft[-1, :][:5])
+
     np.savetxt("sample.csv", Ft, delimiter=",")
-    density = gaussian_kde(data)
-    xs = np.linspace(-0.1, 0.2, 500)
-    density.covariance_factor = lambda: .25
-    density._compute_covariance()
-    pyplot.plot(xs, density(xs))
-    pyplot.show()
-    pyplot.plot(Ft)
-    pyplot.show()
+
+    # density = gaussian_kde(data)
+    # xs = np.linspace(-0.1, 0.2, 500)
+    # density.covariance_factor = lambda: .25
+    # density._compute_covariance()
+    # pyplot.plot(xs, density(xs))
+    # pyplot.show()
+    # pyplot.plot(Ft)
+    # pyplot.show()
