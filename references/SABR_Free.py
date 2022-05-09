@@ -137,7 +137,7 @@ def andersen_QE(ai, b):
     return m, psi
 
 r = 0.05
-def sabrMC(F0=1+r, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=1, T=100000, N=100000,
+def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=1, T=100000, N=100000,
            trapezoidal_integrated_variance=False):
     """Simulates a SABR process with absoption at 0 with the given parameters.
        The Sigma, Alpha, Beta, Rho (SABR) model originates from Hagan S. et al. (2002).
@@ -274,6 +274,7 @@ if __name__ == '__main__':
     print(Ft[-1, :][:5])
 
     np.savetxt("sample.csv", Ft, delimiter=",")
+    print('saved')
 
     # density = gaussian_kde(data)
     # xs = np.linspace(-0.1, 0.2, 500)
