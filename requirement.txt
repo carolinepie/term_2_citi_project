@@ -1,4 +1,4 @@
-# install with pip3 (example)
+# install with pip3 - check
 
 numpy
 tensorly
