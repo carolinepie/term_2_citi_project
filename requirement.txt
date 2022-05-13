@@ -5,4 +5,4 @@ tensorly
 scipy
 matplotlib
 jax==0.3.4
-jaxlib
+jaxlib==0.3.2
