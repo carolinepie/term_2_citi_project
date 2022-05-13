@@ -4,5 +4,5 @@ numpy
 tensorly
 scipy
 matplotlib
-jax
+jax==0.3.4
 jaxlib
