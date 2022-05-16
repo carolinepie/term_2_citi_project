@@ -141,7 +141,7 @@ def andersen_QE(ai, b):
     psi = s2 / m ** 2
     return m, psi
 
-def compute_Ft(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, psi_threshold, zt_1):
+def compute_Ft(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, psi_threshold, zt_1, Ut_1):
     if Ft_1 == np.NaN:
         return np.NaN
 
@@ -171,12 +171,12 @@ def compute_Ft(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, ps
 
     else:
         # direct inversion for small values
-        x_t_next = root_chi2(U[ti - 1, n], b, a, sigma2dt) * sign
+        x_t_next = root_chi2(Ut_1, b, a, sigma2dt) * sign
         return jnp.sign(x_t_next) * jnp.power(((1. - beta) ** 2) * jnp.abs(x_t_next),
                                                  1 / (2. * (1. - beta)))
     return 0
 
-def compute_Ft_np(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, psi_threshold, zt_1):
+def compute_Ft_np(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, psi_threshold, zt_1, Ut_1):
     if Ft_1 == np.NaN:
         return np.NaN
 
@@ -206,13 +206,14 @@ def compute_Ft_np(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b,
 
     else:
         # direct inversion for small values
-        x_t_next = root_chi2(U[ti - 1, n], b, a, sigma2dt) * sign
+        x_t_next = root_chi2(Ut_1, b, a, sigma2dt) * sign
         return np.sign(x_t_next) * np.power(((1. - beta) ** 2) * np.abs(x_t_next),
                                                  1 / (2. * (1. - beta)))
     return 0
 
 def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=1, T=100000, N=100000,
            trapezoidal_integrated_variance=False):
+    print(F0)
     """Simulates a SABR process with absoption at 0 with the given parameters.
        The Sigma, Alpha, Beta, Rho (SABR) model originates from Hagan S. et al. (2002).
        The simulation algorithm is taken from Chen B., Osterlee C. W. and van der Weide H. (2011)
@@ -283,7 +284,7 @@ def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=
         row = [] #compute_Ft(Ft_arr[ti - 1], v_t[ti - 1], v_t[ti - 1], beta, rho, alpha, sigma_t[ti], sigma_t[ti - 1], b, psi_threshold, Z[ti - 1])
 
         for n in range(0, N):
-            row.append(compute_Ft(Ft_arr[ti - 1][n], v_t[ti - 1, n], v_t[ti - 1, n], beta, rho, alpha, sigma_t[ti, n], sigma_t[ti - 1, n], b, psi_threshold, Z[ti - 1, n]))
+            row.append(compute_Ft(Ft_arr[ti - 1][n], v_t[ti - 1, n], v_t[ti - 1, n], beta, rho, alpha, sigma_t[ti, n], sigma_t[ti - 1, n], b, psi_threshold, Z[ti - 1, n], U[ti - 1, n]))
         Ft_arr.append(row)
 
     return jnp.array(Ft_arr)
@@ -292,13 +293,12 @@ def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=
 if __name__ == '__main__':
     # (F0=1+r, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=100000, T=100, N=100000, trapezoidal_integrated_variance=False)
     np.random.seed(1)
-    Ft = sabrMC(N=10000, T=100, n_years=1)
+    Ft = sabrMC(F0 = 1., N=1000, T=100, n_years=1)
     data = Ft[-1, :]
     print(np.mean(Ft[-1, :]))
     print(Ft[-1, :][:5])
 
     np.savetxt("sample.csv", Ft, delimiter=",")
-    print('saved')
 
     # density = gaussian_kde(data)
     # xs = np.linspace(-0.1, 0.2, 500)
