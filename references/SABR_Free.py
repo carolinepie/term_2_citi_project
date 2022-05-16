@@ -1,14 +1,21 @@
-import math
+# import math
 import numpy as np
+import jax.numpy as jnp
 from scipy.stats import norm
-from scipy.special._ufuncs import gammainc
+
+# from scipy.special._ufuncs import gammainc
+# from scipy.special._ufuncs import gamma
+# from scipy.special._ufuncs import iv
+
+from jax.scipy.special import gammainc
 from scipy.special._ufuncs import gamma
-from scipy.special._ufuncs import iv
+# from jax.scipy.special import iv
+
 from scipy.stats import gaussian_kde
 from scipy.optimize import newton
 from scipy.optimize import minimize
 from scipy.stats import ncx2
-from matplotlib import pyplot
+# from matplotlib import pyplot
 
 r"""Unbiased SABR model simulation in the manner of Bin Chen, Cornelis W. Oosterlee and Hans van der Weide (2011).
 The Stochastic Alpha Beta Rho model first designed by Hagan & al. is a very popular model use extensively by practitioners
@@ -61,10 +68,10 @@ def func(x, u, b, a):  # page 13
                   - 0.5 * np.sign(a) * ncx2.cdf(a, b, np.abs(x)) - u)
 
 
-def fprime(x, u, b, a):
-    x_ = np.abs(x)
-    return 0.25 * np.sign(x) * np.exp(-(a+x_)/2) * (x_/a) ** (-b/4) * iv(-b/2, np.sqrt(a*x_)) \
-           - 0.25 * np.sign(a) * np.exp(-(a+x_)/2) * (a/x_) ** ((b-2)/4) * iv(b/2-1, np.sqrt(a*x_))
+# def fprime(x, u, b, a):
+#     x_ = np.abs(x)
+#     return 0.25 * np.sign(x) * np.exp(-(a+x_)/2) * (x_/a) ** (-b/4) * iv(-b/2, np.sqrt(a*x_)) \
+#            - 0.25 * np.sign(a) * np.exp(-(a+x_)/2) * (a/x_) ** ((b-2)/4) * iv(b/2-1, np.sqrt(a*x_))
 
 
 ######################## Absorption probability #################################
@@ -79,9 +86,7 @@ def AbsorptionConditionalProb(a, b):
 
 def simulate_Wt(dW, T, N):
     ''' Simulates brownian paths. Vectorization inspired by Scipy cookbook '''
-    Wt = np.empty((T, N))
-    np.cumsum(dW, axis=0, out=Wt)
-    return Wt
+    return jnp.cumsum(dW, axis=0)
 
 
 def simulate_sigma(Wt, sigma0, alpha, t):
@@ -136,7 +141,76 @@ def andersen_QE(ai, b):
     psi = s2 / m ** 2
     return m, psi
 
-r = 0.05
+def compute_Ft(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, psi_threshold, zt_1):
+    if Ft_1 == np.NaN:
+        return np.NaN
+
+    if Ft_1 == 0.:
+        return 0.
+    
+    a = (1. / vt_1) * (((jnp.abs(Ft_1) ** (1. - beta)) / (1. - beta) + (rho / alpha) * (
+            sigma_t - sigma_t_1)) ** 2)
+
+    x = a * sigma2dt
+
+    sign = jnp.sign(Ft_1)
+    # first moment
+    m1 = (x + (2 - b) * sigma2dt) * gammainc(b / 2, a / 2) + x * jnp.exp(-a / 2) * (
+                a / 2 ** (b / 2 - 1)) / gamma(b / 2)
+    # # second moment
+    m2 = x ** 2 + 4 * (2 - b / 2) * sigma2dt * x + 4 * (1 - b / 2) * (2 - b / 2) * sigma2dt ** 2 - m1 ** 2
+
+    m, psi = m1, m2 / m1 ** 2
+
+    if m >= 0 and psi_threshold >= psi > 0:
+        # Formula 3.9: simulation for high values
+        e2 = (2. / psi) - 1. + jnp.sqrt(2. / psi) * jnp.sqrt((2. / psi) - 1.)
+        d = m / (1. + e2)
+        x_t_next = d * ((jnp.sqrt(e2) + zt_1) ** 2)
+        return sign * jnp.power(((1. - beta) ** 2) * x_t_next, 1 / (2. * (1. - beta)))
+
+    else:
+        # direct inversion for small values
+        x_t_next = root_chi2(U[ti - 1, n], b, a, sigma2dt) * sign
+        return jnp.sign(x_t_next) * jnp.power(((1. - beta) ** 2) * jnp.abs(x_t_next),
+                                                 1 / (2. * (1. - beta)))
+    return 0
+
+def compute_Ft_np(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, psi_threshold, zt_1):
+    if Ft_1 == np.NaN:
+        return np.NaN
+
+    if Ft_1 == 0.:
+        return 0.
+    
+    a = (1. / vt_1) * (((np.abs(Ft_1) ** (1. - beta)) / (1. - beta) + (rho / alpha) * (
+            sigma_t - sigma_t_1)) ** 2)
+
+    x = a * sigma2dt
+
+    sign = np.sign(Ft_1)
+    # first moment
+    m1 = (x + (2 - b) * sigma2dt) * gammainc(b / 2, a / 2) + x * np.exp(-a / 2) * (
+                a / 2 ** (b / 2 - 1)) / gamma(b / 2)
+    # # second moment
+    m2 = x ** 2 + 4 * (2 - b / 2) * sigma2dt * x + 4 * (1 - b / 2) * (2 - b / 2) * sigma2dt ** 2 - m1 ** 2
+
+    m, psi = m1, m2 / m1 ** 2
+
+    if m >= 0 and psi_threshold >= psi > 0:
+        # Formula 3.9: simulation for high values
+        e2 = (2. / psi) - 1. + jnp.sqrt(2. / psi) * jnp.sqrt((2. / psi) - 1.)
+        d = m / (1. + e2)
+        x_t_next = d * ((np.sqrt(e2) + zt_1) ** 2)
+        return sign * np.power(((1. - beta) ** 2) * x_t_next, 1 / (2. * (1. - beta)))
+
+    else:
+        # direct inversion for small values
+        x_t_next = root_chi2(U[ti - 1, n], b, a, sigma2dt) * sign
+        return np.sign(x_t_next) * np.power(((1. - beta) ** 2) * np.abs(x_t_next),
+                                                 1 / (2. * (1. - beta)))
+    return 0
+
 def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=1, T=100000, N=100000,
            trapezoidal_integrated_variance=False):
     """Simulates a SABR process with absoption at 0 with the given parameters.
@@ -179,12 +253,12 @@ def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=
        Bin Chen, Cornelis W. Oosterl, Hans van der Weide (2011)
     """
 
-    tis = np.linspace(1E-10, n_years, T + 1)  # grid - vector of time steps - starts at 1e-10 to avoid unpleasantness
-    t = np.expand_dims(tis, axis=-1)  # for numpy broadcasting
+    tis = jnp.linspace(1E-10, n_years, T + 1)  # grid - vector of time steps - starts at 1e-10 to avoid unpleasantness
+    t = jnp.expand_dims(tis, axis=-1)  # for numpy broadcasting
     dt = n_years / (T)
 
     # Distributions samples
-    dW2 = np.random.normal(0.0, math.sqrt(dt), (T, N))
+    dW2 = np.random.normal(0.0, np.sqrt(dt), (T, N))
     U1 = np.random.uniform(size=(T, N))
     U = np.random.uniform(size=(T, N))
     Z = np.random.normal(0.0, 1., (T, N))
@@ -203,66 +277,16 @@ def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=
     b = 2. - ((1. - 2. * beta - (1. - beta) * (rho ** 2)) / ((1. - beta) * (1. - rho ** 2)))
 
     # initialize underlying values
-    Ft = np.zeros((T - 1, N))
-    Ft = np.insert(Ft, 0, F0 * np.ones(N), axis=0)
-    sign = 1
-    for n in range(0, N):
-        for ti in range(1, T):
+    Ft_arr = [F0 * np.ones(N)]
+    
+    for ti in range(1, T):
+        row = [] #compute_Ft(Ft_arr[ti - 1], v_t[ti - 1], v_t[ti - 1], beta, rho, alpha, sigma_t[ti], sigma_t[ti - 1], b, psi_threshold, Z[ti - 1])
 
-            if Ft[ti - 1, n] == np.NaN:
-                Ft[ti, n] = np.NaN
-                continue
+        for n in range(0, N):
+            row.append(compute_Ft(Ft_arr[ti - 1][n], v_t[ti - 1, n], v_t[ti - 1, n], beta, rho, alpha, sigma_t[ti, n], sigma_t[ti - 1, n], b, psi_threshold, Z[ti - 1, n]))
+        Ft_arr.append(row)
 
-            if Ft[ti - 1, n] == 0.:
-                Ft[ti, n] = 0.
-                continue
-            sigma2dt = v_t[ti - 1, n]
-
-            # x = np.sign(Ft[ti - 1, n]) * np.abs(Ft[ti - 1, n]) ** (2 * (1 - beta)) / (1 - beta) ** 2  # / sigma2dt
-            # first moment
-            # tmp = x / (2 * sigma2dt)
-            #
-            # m1 = (x + 2 * (1 - v_abs) * sigma2dt) * gammainc(v_abs, tmp) \
-            #      + x * np.exp(-tmp) * (tmp ** (v_abs - 1)) / gamma(v_abs)
-            # # second moment
-            # m2 = x ** 2 + 4 * (v + 2) * sigma2dt * np.abs(x) + \
-            #      4 * (v + 2) * (v + 1) * (sigma2dt) ** 2 - m1 ** 2
-
-            a = (1. / v_t[ti - 1, n]) * (((np.abs(Ft[ti - 1, n]) ** (1. - beta)) / (1. - beta) + (rho / alpha) * (
-                    sigma_t[ti, n] - sigma_t[ti - 1, n])) ** 2)
-
-            x = a * sigma2dt
-
-            if Ft[ti - 1, n] < 0.:
-                xter = True
-
-            sign = np.sign(Ft[ti - 1, n])
-            # first moment
-            m1 = (x + (2 - b) * sigma2dt) * gammainc(b / 2, a / 2) + x * np.exp(-a / 2) * (
-                        a / 2 ** (b / 2 - 1)) / gamma(b / 2)
-            # # second moment
-            m2 = x ** 2 + 4 * (2 - b / 2) * sigma2dt * x + 4 * (1 - b / 2) * (2 - b / 2) * sigma2dt ** 2 - m1 ** 2
-
-            m, psi = m1, m2 / m1 ** 2
-            # if psi < 0.:
-            #     xter = True
-
-            if m >= 0 and psi_threshold >= psi > 0:
-                # Formula 3.9: simulation for high values
-                e2 = (2. / psi) - 1. + math.sqrt(2. / psi) * math.sqrt((2. / psi) - 1.)
-                d = m / (1. + e2)
-                x_t_next = d * ((np.sqrt(e2) + Z[ti - 1, n]) ** 2)
-                Ft[ti, n] = sign * np.power(((1. - beta) ** 2) * x_t_next,
-                                            1 / (2. * (1. - beta)))
-
-            else:
-                # direct inversion for small values
-                x_t_next = root_chi2(U[ti - 1, n], b, a, sigma2dt) * sign
-                Ft[ti, n] = np.sign(x_t_next) * np.power(((1. - beta) ** 2) * np.abs(x_t_next),
-                                                         1 / (2. * (1. - beta)))
-            # print Ft[ti, n]
-
-    return Ft
+    return jnp.array(Ft_arr)
 
 
 if __name__ == '__main__':
