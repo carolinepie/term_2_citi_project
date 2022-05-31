@@ -259,10 +259,10 @@ def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=
     dt = n_years / (T)
 
     # Distributions samples
-    dW2 = np.random.normal(0.0, np.sqrt(dt), (T, N))
-    U1 = np.random.uniform(size=(T, N))
-    U = np.random.uniform(size=(T, N))
-    Z = np.random.normal(0.0, 1., (T, N))
+    dW2 = jnp.random.normal(0.0, np.sqrt(dt), (T, N))
+    U1 = jnp.random.uniform(size=(T, N))
+    U = jnp.random.uniform(size=(T, N))
+    Z = jnp.random.normal(0.0, 1., (T, N))
     W2t = simulate_Wt(dW2, T, N)
 
     # vol process
@@ -278,7 +278,7 @@ def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=
     b = 2. - ((1. - 2. * beta - (1. - beta) * (rho ** 2)) / ((1. - beta) * (1. - rho ** 2)))
 
     # initialize underlying values
-    Ft_arr = [F0 * np.ones(N)]
+    Ft_arr = [F0 * jnp.ones(N)]
     
     for ti in range(1, T):
         row = [] #compute_Ft(Ft_arr[ti - 1], v_t[ti - 1], v_t[ti - 1], beta, rho, alpha, sigma_t[ti], sigma_t[ti - 1], b, psi_threshold, Z[ti - 1])
