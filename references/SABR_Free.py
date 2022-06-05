@@ -1,8 +1,8 @@
 # import math
-import numpy as np
+# import numpy as np
 import jax.numpy as jnp
 from scipy.stats import norm
-
+import jax
 # from scipy.special._ufuncs import gammainc
 # from scipy.special._ufuncs import gamma
 # from scipy.special._ufuncs import iv
@@ -64,8 +64,8 @@ def root_chi2(u, b, a, t):
 
 
 def func(x, u, b, a):  # page 13
-    return np.abs(0.5 + 0.5 * np.sign(x) * ncx2.cdf(np.abs(x), 2 - b, a)
-                  - 0.5 * np.sign(a) * ncx2.cdf(a, b, np.abs(x)) - u)
+    return jnp.abs(0.5 + 0.5 * jnp.sign(x) * ncx2.cdf(jnp.abs(x), 2 - b, a)
+                  - 0.5 * jnp.sign(a) * ncx2.cdf(a, b, jnp.abs(x)) - u)
 
 
 # def fprime(x, u, b, a):
@@ -91,26 +91,26 @@ def simulate_Wt(dW, T, N):
 
 def simulate_sigma(Wt, sigma0, alpha, t):
     ''' 'Exact' simulation of GBM with mu=0 '''
-    return sigma0 * np.exp(alpha * Wt - 0.5 * (alpha ** 2) * t[1:])
+    return sigma0 * jnp.exp(alpha * Wt - 0.5 * (alpha ** 2) * t[1:])
 
 
 ######################## integrated variance ####################################
 def integrated_variance_small_disturbances(N, rho, alpha, sigmat, dt, dW, U):
     ''' Small disturbance expansion Chen B. & al (2011).'''
     # formula (3.18)
-    dW_2, dW_3, dW_4 = np.power(dW, 2), np.power(dW, 3), np.power(dW, 4)
+    dW_2, dW_3, dW_4 = jnp.power(dW, 2), jnp.power(dW, 3), jnp.power(dW, 4)
 
     m1 = alpha * dW
     m2 = (1. / 3) * (alpha ** 2) * (2 * dW_2 - dt / 2)
     m3 = (1. / 3) * (alpha ** 3) * (dW_3 - dW * dt)
-    m4 = (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * dt + 2 * np.power(dt, 2))
+    m4 = (1. / 5) * (alpha ** 4) * ((2. / 3) * dW_4 - (3. / 2) * dW_2 * dt + 2 * jnp.power(dt, 2))
     m = (sigmat ** 2) * dt * (1. + m1 + m2 + m3 + m4)
 
-    v = (1. / 3) * (sigmat ** 4) * (alpha ** 2) * np.power(dt, 3)
+    v = (1. / 3) * (sigmat ** 4) * (alpha ** 2) * jnp.power(dt, 3)
     # step 3 & 4 of 3.6 discretization scheme
-    mu = np.log(m) - (1. / 2) * np.log(1. + v / m ** 2)
-    sigma2 = np.log(1. + v / (m ** 2))
-    A_t = np.exp(np.sqrt(sigma2) * norm.ppf(U) + mu)
+    mu = jnp.log(m) - (1. / 2) * jnp.log(1. + v / m ** 2)
+    sigma2 = jnp.log(1. + v / (m ** 2))
+    A_t = jnp.exp(jnp.sqrt(sigma2) * norm.ppf(U) + mu)
     v_t = (1. - rho ** 2) * A_t
     return v_t
 
@@ -123,8 +123,8 @@ def integrated_variance_trapezoidal(rho, sigma_t, dt):
     return v_t
 
 
-def shift(arr, num, fill_value=np.nan):
-    arr = np.roll(arr, num)
+def shift(arr, num, fill_value=jnp.nan):
+    arr = jnp.roll(arr, num)
     if num < 0:
         arr[num:] = fill_value
     elif num > 0:
@@ -142,8 +142,8 @@ def andersen_QE(ai, b):
     return m, psi
 
 def compute_Ft(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, psi_threshold, zt_1, Ut_1):
-    if Ft_1 == np.NaN:
-        return np.NaN
+    if Ft_1 == jnp.nan:
+        return jnp.nan
 
     if Ft_1 == 0.:
         return 0.
@@ -177,8 +177,8 @@ def compute_Ft(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, ps
     return 0
 
 def compute_Ft_np(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b, psi_threshold, zt_1, Ut_1):
-    if Ft_1 == np.NaN:
-        return np.NaN
+    if Ft_1 == np.nan:
+        return np.nan
 
     if Ft_1 == 0.:
         return 0.
@@ -199,21 +199,21 @@ def compute_Ft_np(Ft_1, sigma2dt, vt_1, beta, rho, alpha, sigma_t, sigma_t_1, b,
 
     if m >= 0 and psi_threshold >= psi > 0:
         # Formula 3.9: simulation for high values
-        e2 = (2. / psi) - 1. + jnp.sqrt(2. / psi) * jnp.sqrt((2. / psi) - 1.)
+        e2 = (2. / psi) - 1. + np.sqrt(2. / psi) * np.sqrt((2. / psi) - 1.)
         d = m / (1. + e2)
         x_t_next = d * ((np.sqrt(e2) + zt_1) ** 2)
-        return sign * np.power(((1. - beta) ** 2) * x_t_next, 1 / (2. * (1. - beta)))
+        return sign * jnp.power(((1. - beta) ** 2) * x_t_next, 1 / (2. * (1. - beta)))
 
     else:
         # direct inversion for small values
         x_t_next = root_chi2(Ut_1, b, a, sigma2dt) * sign
-        return np.sign(x_t_next) * np.power(((1. - beta) ** 2) * np.abs(x_t_next),
+        return np.sign(x_t_next) * jnp.power(((1. - beta) ** 2) * jnp.abs(x_t_next),
                                                  1 / (2. * (1. - beta)))
     return 0
 
 def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=1, T=100000, N=100000,
            trapezoidal_integrated_variance=False):
-    print(F0)
+    # print(F0)
     """Simulates a SABR process with absoption at 0 with the given parameters.
        The Sigma, Alpha, Beta, Rho (SABR) model originates from Hagan S. et al. (2002).
        The simulation algorithm is taken from Chen B., Osterlee C. W. and van der Weide H. (2011)
@@ -258,11 +258,13 @@ def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=
     t = jnp.expand_dims(tis, axis=-1)  # for numpy broadcasting
     dt = n_years / (T)
 
+
+
     # Distributions samples
-    dW2 = np.random.normal(0.0, np.sqrt(dt), (T, N))
-    U1 = np.random.uniform(size=(T, N))
-    U = np.random.uniform(size=(T, N))
-    Z = np.random.normal(0.0, 1., (T, N))
+    dW2 = jax.random.normal(jax.random.PRNGKey(0), (T, N)) * jnp.sqrt(dt)
+    U1 = jax.random.uniform(jax.random.PRNGKey(0), (T, N))
+    U = jax.random.uniform(jax.random.PRNGKey(1), (T, N))
+    Z = jax.random.normal(jax.random.PRNGKey(1), (T, N))
     W2t = simulate_Wt(dW2, T, N)
 
     # vol process
@@ -278,7 +280,7 @@ def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=
     b = 2. - ((1. - 2. * beta - (1. - beta) * (rho ** 2)) / ((1. - beta) * (1. - rho ** 2)))
 
     # initialize underlying values
-    Ft_arr = [F0 * np.ones(N)]
+    Ft_arr = [F0 * jnp.ones(N)]
     
     for ti in range(1, T):
         row = [] #compute_Ft(Ft_arr[ti - 1], v_t[ti - 1], v_t[ti - 1], beta, rho, alpha, sigma_t[ti], sigma_t[ti - 1], b, psi_threshold, Z[ti - 1])
@@ -292,13 +294,13 @@ def sabrMC(F0=1, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=
 
 if __name__ == '__main__':
     # (F0=1+r, sigma0=0.25, alpha=0.001, beta=0.999, rho=0.001, psi_threshold=2., n_years=100000, T=100, N=100000, trapezoidal_integrated_variance=False)
-    np.random.seed(1)
+    # np.random.seed(1)
     Ft = sabrMC(F0 = 1., N=1000, T=100, n_years=1)
     data = Ft[-1, :]
-    print(np.mean(Ft[-1, :]))
+    print(jnp.mean(Ft[-1, :]))
     print(Ft[-1, :][:5])
 
-    np.savetxt("sample.csv", Ft, delimiter=",")
+    # np.savetxt("sample.csv", Ft, delimiter=",")
 
     # density = gaussian_kde(data)
     # xs = np.linspace(-0.1, 0.2, 500)
