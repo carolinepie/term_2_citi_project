@@ -1,5 +1,5 @@
 # import math
-# import numpy as np
+import numpy as np
 import jax.numpy as jnp
 from scipy.stats import norm
 import jax
