@@ -1,8 +1,11 @@
 # install with pip3 - check
 
 numpy
-tensorly
+teneva
 scipy
 matplotlib
 jax==0.3.4
 jaxlib==0.3.2
+pandas
+torch
+pysabr
